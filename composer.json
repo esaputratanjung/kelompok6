@@ -1,0 +1,30 @@
+{
+    "name": "kelompok6/roomsync-cloud",
+    "description": "RoomSync Cloud - Sistem booking & monitoring ruang real-time berbasis cloud dengan asisten AI",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "guzzlehttp/guzzle": "^7.9",
+        "kreait/firebase-php": "^8.0"
+    },
+    "autoload": {
+        "files": [
+            "src/bootstrap.php",
+            "src/firebase_db.php",
+            "src/auth.php",
+            "src/mailer.php",
+            "src/gemini.php",
+            "src/layout.php"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "platform": {
+            "php": "8.3.0"
+        }
+    }
+}

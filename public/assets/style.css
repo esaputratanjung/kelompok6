@@ -1,0 +1,8 @@
+.room-card { transition: box-shadow .15s; }
+.room-card:hover { box-shadow: 0 .5rem 1rem rgba(0,0,0,.08); }
+.room-status { font-size: 1.1rem; }
+.status-dot { display: inline-block; width: .75rem; height: .75rem; border-radius: 50%; margin-right: .4rem; }
+.chat-box { height: 260px; overflow-y: auto; background: #f8f9fa; }
+.chat-msg { max-width: 85%; white-space: pre-line; }
+.summary-text { white-space: pre-line; }
+.slot-list { font-size: .875rem; }

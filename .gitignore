@@ -1,0 +1,9 @@
+/vendor/
+.env
+*.json.key
+service-account*.json
+firebase-credentials*.json
+/tests/.mockdb/
+.DS_Store
+.idea/
+.vscode/

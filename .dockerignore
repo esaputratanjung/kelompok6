@@ -1,0 +1,7 @@
+.git
+vendor
+.env
+tests
+*.md
+service-account*.json
+firebase-credentials*.json

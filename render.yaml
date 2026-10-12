@@ -1,0 +1,47 @@
+# Blueprint Render: 1 web service + 1 cron job (auto release tiap menit).
+# Render Dashboard > New > Blueprint > pilih repo ini.
+# Variabel "sync: false" akan ditanyakan nilainya saat Blueprint dibuat.
+# Jangan lupa upload Secret File "firebase.json" (service account) di KEDUA service.
+services:
+  - type: web
+    name: roomsync-cloud
+    runtime: docker
+    plan: free
+    healthCheckPath: /login.php
+    envVars:
+      - key: APP_URL
+        sync: false
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_DATABASE_URL
+        sync: false
+      - key: FIREBASE_CREDENTIALS
+        value: /etc/secrets/firebase.json
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        value: RoomSync Cloud <onboarding@resend.dev>
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-flash-latest
+      - key: CRON_SECRET
+        generateValue: true
+
+  - type: cron
+    name: roomsync-auto-release
+    runtime: docker
+    plan: starter
+    schedule: "* * * * *"
+    dockerCommand: php /var/www/html/cron/auto_release.php
+    envVars:
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_DATABASE_URL
+        sync: false
+      - key: FIREBASE_CREDENTIALS
+        value: /etc/secrets/firebase.json
