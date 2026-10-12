@@ -2,7 +2,7 @@
 
 Sistem booking & monitoring ruang **real-time** berbasis cloud dengan **asisten AI** (Kelompok 6).
 
-**Teknologi:** PHP 8.3 + Composer · Bootstrap 5 · Firebase Authentication · Firebase Realtime Database · Kreait Firebase PHP SDK · Resend API · Google Gemini API · Guzzle · Docker · Render (Web Service + Cron Job)
+**Teknologi:** PHP 8.2+ (Docker: 8.3) + Composer · Bootstrap 5 · Firebase Authentication · Firebase Realtime Database · Kreait Firebase PHP SDK · Resend API · Google Gemini API · Guzzle · Docker · Render (Web Service + Cron Job)
 
 ## Fitur
 
@@ -75,8 +75,21 @@ Jadwal per ruang per tanggal disimpan terpisah, sehingga cek bentrok cukup memba
 
 ### 3. Jalankan lokal
 
+Butuh **PHP 8.2 atau lebih baru** (XAMPP 8.2 bisa) dan **Composer**. Cek dengan `php -v` dan `composer -V`.
+
+Di `php.ini`, pastikan ekstensi ini aktif (hapus tanda `;` di depannya): `curl`, `mbstring`, `openssl`, `sodium`, `fileinfo`.
+Khusus Windows, isi juga lokasi sertifikat SSL agar PHP bisa menghubungi Firebase/Resend/Gemini
+(tanpa ini muncul `cURL error 60`). Unduh <https://curl.se/ca/cacert.pem>, lalu di `php.ini`:
+
+```ini
+curl.cainfo = "C:\php\extras\cacert.pem"
+openssl.cafile = "C:\php\extras\cacert.pem"
+```
+
+Lalu:
+
 ```bash
-cp .env.example .env          # lalu isi semua nilainya
+cp .env.example .env          # Windows: copy .env.example .env  → lalu isi semua nilainya
 composer install
 php -S localhost:8000 -t public
 ```

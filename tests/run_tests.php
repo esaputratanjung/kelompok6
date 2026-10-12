@@ -13,12 +13,21 @@ $root = dirname(__DIR__);
 @unlink(__DIR__ . '/.mockdb/db.json');
 @unlink(__DIR__ . '/.mockdb/emails.jsonl');
 
+// Service account palsu (kunci RSA acak). token_uri diarahkan ke mock, jadi tidak ada akses ke Google.
+$key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+openssl_pkey_export($key, $pem);
+file_put_contents(__DIR__ . '/.mockdb/service-account.json', json_encode([
+    'type' => 'service_account', 'project_id' => 'demo-roomsync', 'private_key_id' => 'test',
+    'private_key' => $pem, 'client_email' => 'test@demo-roomsync.iam.gserviceaccount.com', 'client_id' => '1',
+    'token_uri' => 'http://127.0.0.1:9100/token',
+]));
+
 $env = [
     'FIREBASE_PROJECT_ID' => 'demo-roomsync',
     'FIREBASE_DATABASE_URL' => 'https://demo-roomsync-default-rtdb.firebaseio.com',
     'FIREBASE_DATABASE_EMULATOR_HOST' => '127.0.0.1:9000',
     'FIREBASE_AUTH_EMULATOR_HOST' => '127.0.0.1:9099',
-    'FIREBASE_CREDENTIALS' => '',
+    'FIREBASE_CREDENTIALS' => __DIR__ . '/.mockdb/service-account.json',
     'APP_URL' => 'http://127.0.0.1:8000',
     'RESEND_API_KEY' => 'test-resend-key',
     'RESEND_API_URL' => 'http://127.0.0.1:9100/emails',
@@ -33,12 +42,14 @@ foreach ($env as $k => $v) {
 
 // --- Jalankan 3 server lokal ---
 $procs = [];
-$start = function (string $cmd) use (&$procs, $root, $env): void {
-    $procs[] = proc_open($cmd, [1 => ['file', '/dev/null', 'w'], 2 => ['file', __DIR__ . '/.mockdb/server.log', 'a']], $pipes, $root, $env + getenv());
+// Perintah berbentuk array (tanpa shell) agar jalan di Windows maupun Linux/Mac.
+$start = function (array $args) use (&$procs, $root, $env): void {
+    $log = __DIR__ . '/.mockdb/server.log';
+    $procs[] = proc_open(array_merge([PHP_BINARY], $args), [1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes, $root, $env + getenv());
 };
-$start('exec php -S 127.0.0.1:9000 tests/mock_rtdb.php');
-$start('exec php -S 127.0.0.1:9100 tests/mock_services.php');
-$start('exec php -S 127.0.0.1:8000 -t public');
+$start(['-S', '127.0.0.1:9000', 'tests/mock_rtdb.php']);
+$start(['-S', '127.0.0.1:9100', 'tests/mock_services.php']);
+$start(['-S', '127.0.0.1:8000', '-t', 'public']);
 register_shutdown_function(function () use (&$procs) {
     foreach ($procs as $p) {
         proc_terminate($p);
@@ -259,7 +270,7 @@ check($s === 200, 'Token baru bisa dipakai check-in');
 echo "\n7. Auto release (cron)\n";
 // bookingB: booked, mulai 11 menit lalu -> expired. bookingR: checked_in -> completed setelah jam selesai.
 shift_booking($bookingR, now_ms() - 90 * 60_000, now_ms() - 60_000);
-$out = shell_exec('cd ' . escapeshellarg($root) . ' && php cron/auto_release.php 2>&1');
+$out = shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($root . '/cron/auto_release.php') . ' 2>&1');
 check(str_contains((string) $out, '1 expired, 1 completed'), 'Cron CLI: 1 expired, 1 completed', $out);
 $bB = db()->getReference("bookings/$bookingB")->getValue();
 check($bB['status'] === 'expired' && !isset($bB['token_hash']), 'Booking tanpa check-in → expired');

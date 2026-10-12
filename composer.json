@@ -4,11 +4,11 @@
     "type": "project",
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.2",
         "ext-json": "*",
         "ext-mbstring": "*",
         "guzzlehttp/guzzle": "^7.9",
-        "kreait/firebase-php": "^8.0"
+        "kreait/firebase-php": "^7.24 || ^8.0"
     },
     "autoload": {
         "files": [
@@ -22,9 +22,6 @@
     },
     "config": {
         "optimize-autoloader": true,
-        "sort-packages": true,
-        "platform": {
-            "php": "8.3.0"
-        }
+        "sort-packages": true
     }
 }

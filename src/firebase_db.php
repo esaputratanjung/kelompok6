@@ -43,7 +43,8 @@ function firebase_factory(): Factory
     if ($credentials) {
         if (!str_starts_with($credentials, '{')) {
             // Path relatif dihitung dari folder root project.
-            $path = str_starts_with($credentials, '/') ? $credentials : dirname(__DIR__) . '/' . preg_replace('#^\./#', '', $credentials);
+            $isAbsolute = str_starts_with($credentials, '/') || preg_match('#^[A-Za-z]:[\\\\/]#', $credentials); // Linux atau Windows (C:\...)
+            $path = $isAbsolute ? $credentials : dirname(__DIR__) . '/' . preg_replace('#^\.[\\\\/]#', '', $credentials);
             if (!is_readable($path)) {
                 throw new RuntimeException("File service account tidak ditemukan: $path");
             }

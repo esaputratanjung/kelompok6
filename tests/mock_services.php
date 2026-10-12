@@ -1,6 +1,7 @@
 <?php
 /**
  * Mock Resend + Gemini API, KHUSUS untuk pengujian lokal.
+ *  POST /token                                   -> OAuth token palsu (service account)
  *  POST /emails                                  -> simpan email ke tests/.mockdb/emails.jsonl
  *  POST /v1beta/models/{model}:generateContent   -> jawaban AI palsu
  *
@@ -13,6 +14,10 @@ declare(strict_types=1);
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $body = json_decode((string) file_get_contents('php://input'), true) ?? [];
 header('Content-Type: application/json');
+
+if ($path === '/token') { // OAuth token palsu untuk service account
+    exit('{"access_token":"mock-token","expires_in":3600,"token_type":"Bearer"}');
+}
 
 if ($path === '/emails') {
     if (($_SERVER['HTTP_AUTHORIZATION'] ?? '') !== 'Bearer test-resend-key') {
