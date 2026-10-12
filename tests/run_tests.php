@@ -9,25 +9,28 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__);
+
+if (!is_file($root . '/vendor/autoload.php')) {
+    fwrite(STDERR, "Folder vendor/ belum ada. Jalankan dulu:  composer install\n");
+    exit(1);
+}
+if (PHP_VERSION_ID < 80300) {
+    // Di PHP 8.2 Composer memakai Kreait v7 yang mode emulatornya tetap butuh koneksi ke Google,
+    // jadi mock offline ini tidak bisa dipakai. Aplikasinya sendiri tetap jalan normal di PHP 8.2.
+    echo 'Tes otomatis butuh PHP 8.3+ (versi Anda: ' . PHP_VERSION . "). Aplikasi tetap bisa dijalankan.\n";
+    exit(0);
+}
 @mkdir(__DIR__ . '/.mockdb', 0777, true);
 @unlink(__DIR__ . '/.mockdb/db.json');
 @unlink(__DIR__ . '/.mockdb/emails.jsonl');
 
-// Service account palsu (kunci RSA acak). token_uri diarahkan ke mock, jadi tidak ada akses ke Google.
-$key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
-openssl_pkey_export($key, $pem);
-file_put_contents(__DIR__ . '/.mockdb/service-account.json', json_encode([
-    'type' => 'service_account', 'project_id' => 'demo-roomsync', 'private_key_id' => 'test',
-    'private_key' => $pem, 'client_email' => 'test@demo-roomsync.iam.gserviceaccount.com', 'client_id' => '1',
-    'token_uri' => 'http://127.0.0.1:9100/token',
-]));
-
 $env = [
+    'APP_ENV' => 'testing', // jangan baca file .env milik Anda
     'FIREBASE_PROJECT_ID' => 'demo-roomsync',
     'FIREBASE_DATABASE_URL' => 'https://demo-roomsync-default-rtdb.firebaseio.com',
     'FIREBASE_DATABASE_EMULATOR_HOST' => '127.0.0.1:9000',
     'FIREBASE_AUTH_EMULATOR_HOST' => '127.0.0.1:9099',
-    'FIREBASE_CREDENTIALS' => __DIR__ . '/.mockdb/service-account.json',
+    // FIREBASE_CREDENTIALS sengaja tidak diisi (mode emulator)
     'APP_URL' => 'http://127.0.0.1:8000',
     'RESEND_API_KEY' => 'test-resend-key',
     'RESEND_API_URL' => 'http://127.0.0.1:9100/emails',
@@ -316,6 +319,9 @@ check($s === 200, 'Konfirmasi usulan AI → booking dibuat lewat booking.php', $
 
 // (pengguna lain, karena AI dibatasi 10 permintaan/menit per pengguna)
 $alice = $carol;
+[$s, $r] = $ai(['intent' => 'booking', 'room_id' => 'C', 'date' => $tomorrow . 'T00:00:00', 'start' => '13.00', 'end' => '15:00:00', 'reply' => 'ok']);
+check($s === 200 && ($r['proposals'][0]['start'] ?? '') === '13:00' && ($r['proposals'][0]['end'] ?? '') === '15:00',
+    'Format jam/tanggal AI yang tidak baku ("13.00", "15:00:00") tetap dipahami', $r);
 [$s, $r] = $ai(['intent' => 'clarify', 'reply' => 'Sampai jam berapa?']);
 check($s === 200 && $r['reply'] === 'Sampai jam berapa?' && $r['proposals'] === [], 'Permintaan ambigu → AI minta klarifikasi, tanpa booking', $r);
 [$s, $r] = $ai(['intent' => 'other', 'reply' => 'Saya hanya membantu booking ruang.']);
@@ -330,6 +336,9 @@ check($s === 200 && $r['proposals'] === [], 'Intent tidak dikenal diabaikan', $r
 check($s === 502, 'Jawaban AI bukan JSON → error ditangani (502)', $r);
 [$s, $r] = request('/ai_assistant.php', ['action' => 'chat', 'message' => 'TEST:FAIL'], $alice);
 check($s === 503 && str_contains($r['error'], 'form booking manual'), 'AI gagal/kuota habis → fallback ke form manual (503)', $r);
+@unlink(__DIR__ . '/.mockdb/flaky.flag');
+[$s, $r] = request('/ai_assistant.php', ['action' => 'chat', 'message' => 'TEST:FLAKY'], token('dave', 'dave@example.com'));
+check($s === 200 && ($r['reply'] ?? '') === 'Berhasil setelah retry', 'Gemini sibuk sesaat (503) → dicoba ulang otomatis lalu berhasil', $r);
 [$s, $r] = request('/ai_assistant.php', ['action' => 'chat', 'message' => str_repeat('x', 501)], $alice);
 check($s === 422, 'Pesan terlalu panjang ditolak', $r);
 [$s, $r] = request('/ai_assistant.php', ['action' => 'summary'], $bob);

@@ -12,7 +12,7 @@ declare(strict_types=1);
 // ---------------------------------------------------------------------------
 (function (): void {
     $file = dirname(__DIR__) . '/.env';
-    if (!is_file($file)) {
+    if (getenv('APP_ENV') === 'testing' || !is_file($file)) { // tes otomatis tidak memakai .env
         return;
     }
     foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {

@@ -36,8 +36,10 @@ function require_user(): array
         throw new ApiError('Silakan login terlebih dahulu.', 401);
     }
 
+    $auth = firebase_auth(); // jika konfigurasi Firebase salah, error 500 + detail di log server
+
     try {
-        $verified = firebase_auth()->verifyIdToken($token);
+        $verified = $auth->verifyIdToken($token);
     } catch (\Kreait\Firebase\Exception\Auth\FailedToVerifyToken $e) {
         throw new ApiError('Sesi login tidak valid atau sudah habis. Silakan login ulang.', 401);
     } catch (Throwable $e) {

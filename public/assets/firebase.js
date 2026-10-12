@@ -5,7 +5,14 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getDatabase } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
-export const app = initializeApp(window.FIREBASE_CONFIG);
+const cfg = window.FIREBASE_CONFIG || {};
+const missing = ['apiKey', 'authDomain', 'projectId', 'databaseURL'].filter((k) => !cfg[k]);
+if (missing.length > 0) {
+  throw new Error(`Konfigurasi Firebase belum lengkap (${missing.join(', ')}). `
+    + 'Isi FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID, FIREBASE_DATABASE_URL di file .env, lalu restart server.');
+}
+
+export const app = initializeApp(cfg);
 export const auth = getAuth(app);
 export const db = getDatabase(app);
 

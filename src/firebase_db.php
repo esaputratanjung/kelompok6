@@ -51,8 +51,9 @@ function firebase_factory(): Factory
             $credentials = (string) file_get_contents($path);
         }
         $serviceAccount = json_decode($credentials, true);
-        if (!is_array($serviceAccount)) {
-            throw new RuntimeException('FIREBASE_CREDENTIALS bukan JSON service account yang valid.');
+        if (!is_array($serviceAccount) || empty($serviceAccount['private_key']) || empty($serviceAccount['client_email'])) {
+            throw new RuntimeException('FIREBASE_CREDENTIALS bukan file service account yang valid. Unduh dari Firebase Console > '
+                . 'Project settings > Service accounts > Generate new private key (harus berisi "private_key" dan "client_email").');
         }
         $factory = $factory->withServiceAccount($serviceAccount);
     }

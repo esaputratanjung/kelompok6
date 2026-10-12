@@ -30,21 +30,44 @@ function gemini_generate(string $prompt, ?array $schema = null): array|string
         $config['responseSchema'] = $schema;
     }
 
-    try {
-        $response = http_client()->post(
-            env('GEMINI_API_BASE', 'https://generativelanguage.googleapis.com/v1beta') . '/models/' . rawurlencode($model) . ':generateContent',
-            [
+    $url = env('GEMINI_API_BASE', 'https://generativelanguage.googleapis.com/v1beta') . '/models/' . rawurlencode($model) . ':generateContent';
+    $response = null;
+    $status = 0;
+    // Coba maksimal 3 kali: error 429 (batas per menit) / 5xx (server Gemini sibuk) biasanya hilang sendiri.
+    for ($attempt = 1; $attempt <= 3; $attempt++) {
+        try {
+            $response = http_client()->post($url, [
                 'headers' => ['x-goog-api-key' => $apiKey],
                 'json' => [
                     'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]],
                     'generationConfig' => $config,
                 ],
                 'timeout' => 30,
-            ]
-        );
-    } catch (Throwable $e) {
-        error_log('[RoomSync] Gemini error: ' . $e->getMessage());
-        throw new ApiError('Asisten AI sedang tidak tersedia (kuota habis atau gangguan). Silakan gunakan form booking manual.', 503);
+            ]);
+            break;
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $status = $e->hasResponse() ? $e->getResponse()->getStatusCode() : 0;
+            $body = $e->hasResponse() ? mb_substr((string) $e->getResponse()->getBody(), 0, 300) : $e->getMessage();
+            error_log("[RoomSync] Gemini error (percobaan $attempt, HTTP $status): $body");
+            $retryable = $status === 0 || $status === 429 || $status >= 500;
+            if (!$retryable || $attempt === 3) {
+                break;
+            }
+            usleep($attempt * 1_000_000); // tunggu 1 detik, lalu 2 detik
+        } catch (Throwable $e) {
+            error_log('[RoomSync] Gemini error: ' . $e->getMessage());
+            break;
+        }
+    }
+
+    if ($response === null) {
+        $reason = match (true) {
+            $status === 429 => 'batas pemakaian gratis per menit tercapai, coba lagi sebentar lagi',
+            $status === 400 || $status === 403 => 'API key atau model tidak valid',
+            $status === 404 => 'model AI tidak ditemukan (cek GEMINI_MODEL)',
+            default => 'server AI sedang sibuk atau gangguan',
+        };
+        throw new ApiError("Asisten AI sedang tidak tersedia ($reason). Silakan gunakan form booking manual.", 503);
     }
 
     $data = json_decode((string) $response->getBody(), true);

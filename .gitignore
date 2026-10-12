@@ -7,3 +7,4 @@ firebase-credentials*.json
 .DS_Store
 .idea/
 .vscode/
+composer.lock

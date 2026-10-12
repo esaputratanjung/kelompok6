@@ -34,6 +34,25 @@ function page_header(string $title, bool $showNav = false): void
   <script>
     window.FIREBASE_CONFIG = <?= $config ?>;
     window.APP = { rooms: <?= $rooms ?>, openHour: <?= OPEN_HOUR ?>, closeHour: <?= CLOSE_HOUR ?>, graceMin: <?= CHECKIN_GRACE_MIN ?> };
+    // Tampilkan error JavaScript di halaman (bukan hanya di console), supaya mudah dicari penyebabnya.
+    window.showFatal = function (msg) {
+      var show = function () {
+        var box = document.getElementById('fatal-error');
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'fatal-error';
+          box.className = 'alert alert-danger m-3';
+          box.setAttribute('role', 'alert');
+          document.body.prepend(box);
+        }
+        box.textContent = 'Terjadi kesalahan: ' + msg;
+      };
+      if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
+    };
+    window.addEventListener('error', function (e) { window.showFatal(e.message || 'script error'); });
+    window.addEventListener('unhandledrejection', function (e) {
+      window.showFatal((e.reason && e.reason.message) || String(e.reason));
+    });
   </script>
 </head>
 <body class="bg-light">
@@ -57,7 +76,8 @@ function page_footer(array $scripts = []): void
     ?>
 </main>
 <?php foreach ($scripts as $src): ?>
-<script type="module" src="<?= e($src) ?>"></script>
+<script type="module" src="<?= e($src) ?>"
+        onerror="showFatal('Script Firebase/aplikasi gagal dimuat. Periksa koneksi internet atau ekstensi pemblokir iklan.')"></script>
 <?php endforeach; ?>
 </body>
 </html>
