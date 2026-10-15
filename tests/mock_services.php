@@ -2,6 +2,7 @@
 /**
  * Mock Resend + Gemini API, KHUSUS untuk pengujian lokal.
  *  POST /emails                                  -> simpan email ke tests/.mockdb/emails.jsonl
+ *                                                   (HTTP 500 selama tests/.mockdb/email_down.flag ada)
  *  POST /v1beta/models/{model}:generateContent   -> jawaban AI palsu
  *
  * Pesan chat "TEST:{...json...}" -> AI mengembalikan JSON itu apa adanya.
@@ -18,6 +19,10 @@ if ($path === '/emails') {
     if (($_SERVER['HTTP_AUTHORIZATION'] ?? '') !== 'Bearer test-resend-key') {
         http_response_code(401);
         exit('{"message":"bad key"}');
+    }
+    if (is_file(__DIR__ . '/.mockdb/email_down.flag')) { // simulasi Resend sedang gangguan
+        http_response_code(500);
+        exit('{"message":"down"}');
     }
     file_put_contents(__DIR__ . '/.mockdb/emails.jsonl', json_encode($body) . "\n", FILE_APPEND | LOCK_EX);
     exit('{"id":"mock-email"}');

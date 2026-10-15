@@ -45,8 +45,8 @@ run_api(function (): array {
 
         case 'resend':
             $bookingId = (string) ($input['booking_id'] ?? '');
-            $token = null;
-            $booking = update_booking($bookingId, function (array $b) use ($user, &$token): array {
+            // 1) Validasi + klaim jeda 1 menit secara atomik. Token lama belum disentuh.
+            $booking = update_booking($bookingId, function (array $b) use ($user): array {
                 if (($b['uid'] ?? '') !== $user['uid']) {
                     throw new ApiError('Booking ini bukan milik akun Anda.', 403);
                 }
@@ -59,15 +59,24 @@ run_api(function (): array {
                 if (now_ms() - (int) ($b['last_email_at'] ?? 0) < 60_000) {
                     throw new ApiError('Tunggu 1 menit sebelum mengirim ulang e-ticket.', 429);
                 }
-                // Token lama otomatis tidak berlaku karena hash-nya diganti.
-                [$token, $b['token_hash']] = generate_checkin_token();
                 $b['last_email_at'] = now_ms();
                 return $b;
             });
 
+            // 2) Kirim token baru. Jika email gagal, link di e-ticket lama tetap berlaku.
+            [$token, $tokenHash] = generate_checkin_token();
             if (!send_ticket_email($booking, $token)) {
-                throw new ApiError('E-ticket gagal dikirim. Booking Anda tetap aman, silakan coba lagi nanti.', 502);
+                throw new ApiError('E-ticket gagal dikirim. Link check-in di e-ticket sebelumnya tetap berlaku, silakan coba lagi nanti.', 502);
             }
+
+            // 3) Email terkirim: baru sekarang token lama diganti (dan otomatis tidak berlaku).
+            update_booking($bookingId, function (array $b) use ($tokenHash): ?array {
+                if ($b['status'] !== 'booked') {
+                    return null; // keburu check-in atau kedaluwarsa saat email dikirim
+                }
+                $b['token_hash'] = $tokenHash;
+                return $b;
+            });
             return ['ok' => true, 'message' => "E-ticket {$bookingId} sudah dikirim ulang ke email Anda."];
 
         default:
