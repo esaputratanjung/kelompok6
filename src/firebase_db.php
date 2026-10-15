@@ -283,8 +283,14 @@ function update_booking(string $bookingId, callable $mutate): ?array
     });
 
     if ($updated !== null) {
+        // Booking sudah tersimpan; RTDB tidak punya transaksi dua node. Jika salinan
+        // status di /schedules gagal ditulis, cron (auto_release) yang membetulkannya.
         $path = sprintf('schedules/%s/%s/%s/status', $updated['room_id'], date_key((int) $updated['start_at']), $bookingId);
-        db()->getReference($path)->set($updated['status']);
+        try {
+            db()->getReference($path)->set($updated['status']);
+        } catch (Throwable $e) {
+            error_log("[RoomSync] Gagal sinkron status jadwal $bookingId: " . $e->getMessage());
+        }
     }
     return $updated;
 }
@@ -364,6 +370,29 @@ function auto_release(?int $now = null): array
             return $cur;
         });
         $result['completed'] += $changed ? 1 : 0;
+    }
+
+    // Jadwal hari ini yang masih "menempati" slot padahal waktunya sudah lewat = salinan
+    // status yang tertinggal (sinkron gagal) atau slot tanpa booking. Samakan dengan /bookings.
+    $dateKey = date_key($now);
+    foreach (array_keys(ROOMS) as $roomId) {
+        foreach (get_room_schedule($roomId, $dateKey) as $id => $slot) {
+            $overdue = match ($slot['status'] ?? '') {
+                'booked' => $now > (int) $slot['start_at'] + CHECKIN_GRACE_MIN * 60_000,
+                'checked_in' => $now >= (int) $slot['end_at'],
+                default => false,
+            };
+            if (!$overdue) {
+                continue;
+            }
+            $status = db()->getReference("bookings/$id/status")->getValue();
+            if ($status === $slot['status']) {
+                continue;
+            }
+            $ref = db()->getReference("schedules/$roomId/$dateKey/$id");
+            $status === null ? $ref->remove() : $ref->getChild('status')->set($status);
+            error_log("[RoomSync] Jadwal $id diperbaiki: {$slot['status']} -> " . ($status ?? 'dihapus'));
+        }
     }
 
     return $result;

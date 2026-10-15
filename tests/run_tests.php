@@ -288,6 +288,13 @@ check(db()->getReference("bookings/$bookingA/status")->getValue() === 'checked_i
 $schedB = get_room_schedule('B', date_key((int) $bB['start_at']));
 check(find_conflict($schedB, (int) $bB['start_at'], (int) $bB['end_at']) === null, 'Slot booking expired kembali tersedia');
 check(auto_release() === ['expired' => 0, 'completed' => 0], 'Cron dijalankan ulang tidak mengubah apa pun (idempoten)');
+// Sinkron status ke /schedules gagal (booking sudah expired, jadwal masih "booked") + slot tanpa booking.
+$dayB = date_key((int) $bB['start_at']);
+db()->getReference("schedules/B/$dayB/$bookingB/status")->set('booked');
+db()->getReference("schedules/B/$dayB/RS-ZZZZZZ")->set(['start_at' => (int) $bB['start_at'], 'end_at' => (int) $bB['end_at'], 'status' => 'booked']);
+auto_release();
+$schedB = get_room_schedule('B', $dayB);
+check(($schedB[$bookingB]['status'] ?? '') === 'expired' && !isset($schedB['RS-ZZZZZZ']), 'Cron memperbaiki jadwal yang tertinggal', $schedB);
 [$s] = request('/cron.php', null, null, 'GET');
 check($s === 403, 'Endpoint /cron.php tanpa secret ditolak');
 [$s, $r] = request('/cron.php?key=secret-for-tests-1234567890', null, null, 'GET');
