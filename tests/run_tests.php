@@ -276,6 +276,24 @@ check($s === 403, 'Token lama tidak berlaku lagi');
 check($s === 200, 'Token baru bisa dipakai check-in');
 
 // =====================================================================
+echo "\n6b. Batalkan booking (Delete)\n";
+[$s, $r] = request('/booking.php', ['action' => 'create', 'room_id' => 'A', 'date' => $tomorrow, 'start' => '15:00', 'end' => '16:00'], $alice);
+$bookingX = $r['booking']['booking_id'] ?? '';
+[$s, $r] = request('/booking.php', ['action' => 'cancel', 'booking_id' => $bookingX], $bob);
+check($s === 403 && db()->getReference("bookings/$bookingX")->getSnapshot()->exists(), 'Batal oleh bukan pemilik ditolak', $r);
+[$s, $r] = request('/booking.php', ['action' => 'cancel', 'booking_id' => $bookingX], $alice);
+check($s === 200 && !db()->getReference("bookings/$bookingX")->getSnapshot()->exists()
+    && db()->getReference("schedules/A/$tomorrow/$bookingX")->getValue() === null, 'Batal oleh pemilik: booking & slot terhapus', $r);
+[$s, $r] = request('/booking.php', ['action' => 'cancel', 'booking_id' => $bookingX], $alice);
+check($s === 404, 'Batal booking yang sudah dihapus ditolak', $r);
+[$s, $r] = request('/booking.php', ['action' => 'create', 'room_id' => 'A', 'date' => $tomorrow, 'start' => '15:00', 'end' => '16:00'], $bob);
+check($s === 200, 'Pesan ulang slot yang dibatalkan berhasil', $r);
+[$s, $r] = request('/booking.php', ['action' => 'cancel', 'booking_id' => $bookingR], $alice);
+check($s === 409 && db()->getReference("bookings/$bookingR/status")->getValue() === 'checked_in', 'Booking yang sudah check-in tidak bisa dibatalkan', $r);
+[$s, $r] = request('/booking.php', ['action' => 'cancel', 'booking_id' => '../rate_limits'], $alice);
+check($s === 404, 'Kode booking aneh (path injection) ditolak', $r);
+
+// =====================================================================
 echo "\n7. Auto release (cron)\n";
 // bookingB: booked, mulai 11 menit lalu -> expired. bookingR: checked_in -> completed setelah jam selesai.
 shift_booking($bookingR, now_ms() - 90 * 60_000, now_ms() - 60_000);

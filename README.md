@@ -23,7 +23,7 @@ Sistem booking & monitoring ruang **real-time** berbasis cloud dengan **asisten 
 │   ├── register.php         halaman daftar
 │   ├── dashboard.php        dashboard real-time + form booking + chat AI
 │   ├── checkin.php          halaman & API check-in
-│   ├── booking.php          API booking (buat, kirim ulang e-ticket)
+│   ├── booking.php          API booking (buat, kirim ulang e-ticket, batalkan)
 │   ├── ai_assistant.php     API asisten AI (chat & ringkasan)
 │   ├── cron.php             (opsional) pemicu auto release lewat URL
 │   └── assets/              JavaScript & CSS
@@ -142,7 +142,7 @@ docker run -p 8000:80 --env-file .env -v "$PWD/firebase-credentials.json:/var/ww
 php tests/run_tests.php
 ```
 
-Menjalankan 69 skenario otomatis memakai *mock* Firebase Realtime Database, Resend, dan Gemini (tanpa internet/akun), termasuk seluruh skenario di Rencana Pengujian:
+Menjalankan 79 skenario otomatis memakai *mock* Firebase Realtime Database, Resend, dan Gemini (tanpa internet/akun), termasuk seluruh skenario di Rencana Pengujian:
 
 | Skenario | Hasil yang diharapkan | Status |
 |---|---|---|

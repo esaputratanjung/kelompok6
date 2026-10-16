@@ -191,21 +191,37 @@ function renderMyBookings() {
           el('div', { class: 'fw-semibold' }, `${b.booking_id} · ${rooms[b.room_id] || b.room_id}`),
           el('div', { class: 'small text-muted' }, `${fmtDate(b.start_at)}, ${fmtTime(b.start_at)} – ${fmtTime(b.end_at)} WIB`)),
         el('span', { class: `badge ${label.cls}` }, label.text)),
-      canResend && el('button', {
-        class: 'btn btn-sm btn-link px-0',
-        type: 'button',
-        onclick: async (event) => {
-          event.target.disabled = true;
-          try {
-            const res = await api('/booking.php', { action: 'resend', booking_id: b.booking_id });
-            showAlert($('my-msg'), res.message, 'success');
-          } catch (err) {
-            showAlert($('my-msg'), err.message);
-          } finally {
-            event.target.disabled = false;
-          }
-        },
-      }, 'Kirim ulang e-ticket'));
+      b.status === 'booked' && el('div', { class: 'd-flex gap-3' },
+        canResend && el('button', {
+          class: 'btn btn-sm btn-link px-0',
+          type: 'button',
+          onclick: async (event) => {
+            event.target.disabled = true;
+            try {
+              const res = await api('/booking.php', { action: 'resend', booking_id: b.booking_id });
+              showAlert($('my-msg'), res.message, 'success');
+            } catch (err) {
+              showAlert($('my-msg'), err.message);
+            } finally {
+              event.target.disabled = false;
+            }
+          },
+        }, 'Kirim ulang e-ticket'),
+        el('button', {
+          class: 'btn btn-sm btn-link px-0 text-danger',
+          type: 'button',
+          onclick: async (event) => {
+            if (!confirm(`Batalkan booking ${b.booking_id}? Booking akan dihapus.`)) return;
+            event.target.disabled = true;
+            try {
+              const res = await api('/booking.php', { action: 'cancel', booking_id: b.booking_id });
+              showAlert($('my-msg'), res.message, 'success');
+            } catch (err) {
+              showAlert($('my-msg'), err.message);
+              event.target.disabled = false;
+            }
+          },
+        }, 'Batalkan booking')));
   })));
 }
 

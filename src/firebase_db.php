@@ -331,6 +331,42 @@ function checkin_booking(string $uid, string $bookingId, string $token, ?int $no
 }
 
 /**
+ * Batalkan booking (Delete): hanya pemilik, hanya yang masih "booked".
+ * Booking dihapus dalam transaksi, lalu slotnya di /schedules dibebaskan.
+ */
+function cancel_booking(string $uid, string $bookingId): array
+{
+    if (!preg_match('/^RS-[A-Z0-9]{6}$/', $bookingId)) {
+        throw new ApiError('Kode booking tidak valid.', 404);
+    }
+    $ref = db()->getReference("bookings/$bookingId");
+
+    $booking = with_transaction(function (Transaction $tx) use ($ref, $uid): array {
+        $b = $tx->snapshot($ref)->getValue();
+        if (!is_array($b)) {
+            throw new ApiError('Booking tidak ditemukan.', 404);
+        }
+        if (($b['uid'] ?? '') !== $uid) {
+            throw new ApiError('Booking ini bukan milik akun Anda.', 403);
+        }
+        if ($b['status'] !== 'booked') {
+            throw new ApiError('Hanya booking yang belum check-in yang bisa dibatalkan.', 409);
+        }
+        $tx->remove($ref);
+        return $b;
+    });
+
+    // Booking sudah terhapus. Jika slot gagal dibebaskan, cron menghapusnya setelah jam mulai lewat.
+    $path = sprintf('schedules/%s/%s/%s', $booking['room_id'], date_key((int) $booking['start_at']), $bookingId);
+    try {
+        db()->getReference($path)->remove();
+    } catch (Throwable $e) {
+        error_log("[RoomSync] Gagal membebaskan slot $bookingId: " . $e->getMessage());
+    }
+    return $booking;
+}
+
+/**
  * Auto release: dijalankan oleh Cron Job setiap menit.
  *  - booked & tidak check-in > 10 menit setelah jam mulai -> expired
  *  - checked_in & jam selesai sudah lewat                 -> completed

@@ -4,6 +4,7 @@
  *
  *  { "action": "create", "room_id": "A", "date": "2026-10-14", "start": "10:00", "end": "12:00" }
  *  { "action": "resend", "booking_id": "RS-XXXXXX" }   -> kirim ulang e-ticket
+ *  { "action": "cancel", "booking_id": "RS-XXXXXX" }   -> batalkan (hapus) booking
  */
 
 declare(strict_types=1);
@@ -78,6 +79,10 @@ run_api(function (): array {
                 return $b;
             });
             return ['ok' => true, 'message' => "E-ticket {$bookingId} sudah dikirim ulang ke email Anda."];
+
+        case 'cancel':
+            $booking = cancel_booking($user['uid'], (string) ($input['booking_id'] ?? ''));
+            return ['ok' => true, 'message' => "Booking {$booking['booking_id']} dibatalkan. Slot kembali tersedia."];
 
         default:
             throw new ApiError('Action tidak dikenal.', 400);
