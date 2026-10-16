@@ -53,6 +53,9 @@ function require_user(): array
     if ($uid === '') {
         throw new ApiError('Sesi login tidak valid.', 401);
     }
+    if ($claims->get('email_verified') !== true) {
+        throw new ApiError('Email belum diverifikasi. Klik link verifikasi di email Anda, lalu login ulang.', 403);
+    }
 
     return ['uid' => $uid, 'email' => $email];
 }

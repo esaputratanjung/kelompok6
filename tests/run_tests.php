@@ -85,12 +85,12 @@ function check(bool $cond, string $name, mixed $debug = null): void
 }
 
 /** ID token palsu (tanpa tanda tangan) — diterima karena mode emulator. */
-function token(string $uid, ?string $email = null): string
+function token(string $uid, ?string $email = null, bool $verified = true): string
 {
     $b64 = fn($d) => rtrim(strtr(base64_encode(json_encode($d)), '+/', '-_'), '=');
     $now = time();
     $claims = ['iss' => 'https://securetoken.google.com/demo-roomsync', 'aud' => 'demo-roomsync', 'sub' => $uid,
-        'iat' => $now, 'exp' => $now + 3600, 'auth_time' => $now];
+        'iat' => $now, 'exp' => $now + 3600, 'auth_time' => $now, 'email_verified' => $verified];
     if ($email !== null) {
         $claims['email'] = $email;
     }
@@ -148,6 +148,8 @@ echo "\n1. Autentikasi\n";
 check($s === 401, 'Tanpa token ditolak (401)');
 [$s] = request('/booking.php', ['action' => 'create'], 'token.palsu.sekali');
 check($s === 401, 'Token tidak valid ditolak (401)');
+[$s, $r] = request('/booking.php', ['action' => 'create'], token('eve', 'eve@example.com', false));
+check($s === 403 && str_contains($r['error'] ?? '', 'belum diverifikasi'), 'Email belum diverifikasi ditolak (403)', $r);
 [$s] = request('/booking.php', null, $alice, 'GET');
 check($s === 405, 'Method GET ditolak (405)');
 

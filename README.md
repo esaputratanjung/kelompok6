@@ -8,7 +8,7 @@ Sistem booking & monitoring ruang **real-time** berbasis cloud dengan **asisten 
 
 | # | Fitur | Keterangan |
 |---|-------|------------|
-| 1 | Login & Daftar | Firebase Auth email/password. ID token diverifikasi PHP di setiap request. |
+| 1 | Login & Daftar | Firebase Auth email/password + email verifikasi setelah daftar. ID token diverifikasi PHP di setiap request. |
 | 2 | Dashboard real-time | Status Ruang A, B, C per tanggal & jam, update otomatis (listener `onValue`) tanpa reload. |
 | 3 | Booking anti-bentrok | Validasi waktu + cek tumpang tindih di dalam **transaksi atomik** (ETag), retry terbatas. |
 | 4 | E-ticket & check-in | Email berisi kode booking + link check-in dengan token **sekali pakai** (disimpan sebagai hash). |
@@ -119,7 +119,7 @@ docker run -p 8000:80 --env-file .env -v "$PWD/firebase-credentials.json:/var/ww
 
 ## Keamanan
 
-- **Verifikasi token** – setiap booking & check-in memverifikasi Firebase ID token di PHP; `uid` & email diambil dari token, bukan dari input.
+- **Verifikasi token** – setiap booking & check-in memverifikasi Firebase ID token di PHP; `uid` & email diambil dari token, bukan dari input. Email yang belum diverifikasi ditolak (403).
 - **Tulis hanya via backend** – `database.rules.json`: klien hanya boleh *membaca*; semua penulisan lewat service account di server.
 - **Token check-in aman** – token acak 192-bit, disimpan sebagai hash SHA-256, sekali pakai, dan hanya berlaku di jendela check-in.
 - **Secret terlindungi** – service account & API key disimpan sebagai secret Render; repo hanya berisi `.env.example`.
@@ -142,7 +142,7 @@ docker run -p 8000:80 --env-file .env -v "$PWD/firebase-credentials.json:/var/ww
 php tests/run_tests.php
 ```
 
-Menjalankan 79 skenario otomatis memakai *mock* Firebase Realtime Database, Resend, dan Gemini (tanpa internet/akun), termasuk seluruh skenario di Rencana Pengujian:
+Menjalankan 80 skenario otomatis memakai *mock* Firebase Realtime Database, Resend, dan Gemini (tanpa internet/akun), termasuk seluruh skenario di Rencana Pengujian:
 
 | Skenario | Hasil yang diharapkan | Status |
 |---|---|---|

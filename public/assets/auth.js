@@ -2,7 +2,10 @@
 import { auth, showAlert } from './firebase.js';
 import {
   signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged,
+  sendEmailVerification, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+auth.languageCode = 'id'; // email verifikasi berbahasa Indonesia
 
 const form = document.getElementById('auth-form');
 const msg = document.getElementById('auth-msg');
@@ -21,7 +24,7 @@ if (switchLink && params.get('next')) {
 
 let submitting = false;
 onAuthStateChanged(auth, (user) => {
-  if (user && !submitting) location.replace(next); // sudah login
+  if (user && user.emailVerified && !submitting) location.replace(next); // sudah login
 });
 
 const ERRORS = {
@@ -53,12 +56,20 @@ form.addEventListener('submit', async (event) => {
   submitting = true;
   msg.replaceChildren();
   try {
-    if (mode === 'register') {
-      await createUserWithEmailAndPassword(auth, email, password);
-    } else {
-      await signInWithEmailAndPassword(auth, email, password);
-    }
-    location.replace(next);
+    const { user } = mode === 'register'
+      ? await createUserWithEmailAndPassword(auth, email, password)
+      : await signInWithEmailAndPassword(auth, email, password);
+    if (user.emailVerified) return location.replace(next);
+
+    // Akun baru / belum verifikasi: kirim link verifikasi, lalu keluar sampai link diklik.
+    let sent = true;
+    try { await sendEmailVerification(user); } catch { sent = false; } // mis. terlalu sering kirim
+    await signOut(auth);
+    showAlert(msg, sent
+      ? `Link verifikasi dikirim ke ${email}. Klik link itu (cek juga folder spam), lalu masuk.`
+      : 'Email belum diverifikasi. Klik link verifikasi yang sudah dikirim ke email Anda, lalu masuk.', 'success');
+    button.disabled = false;
+    submitting = false;
   } catch (err) {
     showAlert(msg, ERRORS[err.code] || 'Gagal: ' + err.message);
     button.disabled = false;

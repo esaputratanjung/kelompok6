@@ -19,9 +19,10 @@ export const db = getDatabase(app);
 /** Tunggu status login. Jika belum login, arahkan ke halaman login. */
 export function requireLogin() {
   return new Promise((resolve) => {
-    const stop = onAuthStateChanged(auth, (user) => {
+    const stop = onAuthStateChanged(auth, async (user) => {
       stop();
-      if (!user) {
+      if (!user || !user.emailVerified) {
+        if (user) await signOut(auth); // email belum diverifikasi
         const next = location.pathname + location.search;
         location.replace('/login.php?next=' + encodeURIComponent(next));
         return;
